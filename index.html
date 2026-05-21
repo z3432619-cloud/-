@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>斗地主人机对战</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main id="table" class="table">
+      <section class="topbar">
+        <div>
+          <h1>斗地主</h1>
+          <p id="status">准备开始新牌局</p>
+        </div>
+        <button id="newGame" class="ghost">新牌局</button>
+      </section>
+
+      <section class="opponents">
+        <article id="ai1Panel" class="player">
+          <div class="player-meta">
+            <strong>左手 AI</strong>
+            <span id="ai1Role">农民</span>
+          </div>
+          <div class="count"><span id="ai1Count">17</span> 张</div>
+          <div id="ai1Last" class="last-play"></div>
+        </article>
+
+        <article id="ai2Panel" class="player">
+          <div class="player-meta">
+            <strong>右手 AI</strong>
+            <span id="ai2Role">农民</span>
+          </div>
+          <div class="count"><span id="ai2Count">17</span> 张</div>
+          <div id="ai2Last" class="last-play"></div>
+        </article>
+      </section>
+
+      <section class="center">
+        <div>
+          <span>底牌</span>
+          <div id="kitty" class="kitty"></div>
+        </div>
+        <div id="deckPile" class="deck-pile" aria-hidden="true">
+          <div class="card back"></div>
+          <div class="card back"></div>
+          <div class="card back"></div>
+        </div>
+        <div id="lastPlayBox" class="last-box">
+          <span>当前牌型</span>
+          <strong id="lastSummary">无</strong>
+        </div>
+      </section>
+
+      <section id="bidding" class="actions hidden">
+        <button id="bidYes" class="primary">叫地主</button>
+        <button id="bidNo">不叫</button>
+      </section>
+
+      <section class="human-wrap">
+        <article id="humanPanel" class="player human">
+          <div class="player-meta">
+            <strong>你</strong>
+            <span id="humanRole">农民</span>
+          </div>
+          <div id="humanLast" class="last-play"></div>
+        </article>
+
+        <div id="hand" class="hand" aria-label="你的手牌"></div>
+
+        <div id="playActions" class="actions">
+          <button id="hint">提示</button>
+          <button id="play" class="primary">出牌</button>
+          <button id="pass">不要</button>
+        </div>
+      </section>
+
+      <div id="dealLayer" class="deal-layer" aria-hidden="true"></div>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
