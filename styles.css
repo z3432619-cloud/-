@@ -1,12 +1,11 @@
 :root {
   color-scheme: dark;
-  --felt: #14664e;
   --felt-deep: #0d4439;
   --felt-light: #1d8061;
   --ink: #f8f4e8;
   --muted: #b9cfc4;
   --gold: #f5c85b;
-  --red: #e85f5c;
+  --red: #c93735;
   --black: #202226;
   --panel: rgba(9, 32, 29, 0.72);
   --panel-line: rgba(255, 255, 255, 0.14);
@@ -17,9 +16,14 @@
   box-sizing: border-box;
 }
 
+html,
 body {
-  min-height: 100vh;
+  height: 100%;
+}
+
+body {
   margin: 0;
+  overflow: hidden;
   font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
   background:
     radial-gradient(circle at 22% 18%, rgba(245, 200, 91, 0.16), transparent 28%),
@@ -27,14 +31,19 @@ body {
   color: var(--ink);
 }
 
+button,
+input {
+  font: inherit;
+}
+
 button {
-  min-width: 86px;
-  min-height: 42px;
+  min-width: 76px;
+  min-height: 36px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.12);
   color: var(--ink);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
@@ -67,15 +76,15 @@ button:disabled {
 .table {
   position: relative;
   overflow: hidden;
-  width: min(1180px, calc(100vw - 28px));
-  min-height: calc(100vh - 28px);
-  margin: 14px auto;
-  padding: 18px;
+  width: min(1180px, calc(100vw - 16px));
+  height: calc(100vh - 16px);
+  margin: 8px auto;
+  padding: clamp(10px, 1.4vw, 16px);
   display: grid;
-  grid-template-rows: auto auto 1fr auto auto;
-  gap: 16px;
+  grid-template-rows: auto auto minmax(92px, 1fr) auto minmax(190px, auto);
+  gap: clamp(8px, 1.3vh, 14px);
   border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 18px;
+  border-radius: 16px;
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
     linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
@@ -95,24 +104,60 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: 12px;
+}
+
+.brand {
+  min-width: 0;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
 }
 
 h1 {
-  margin: 0;
-  font-size: clamp(28px, 5vw, 46px);
+  font-size: clamp(26px, 4.1vh, 40px);
   letter-spacing: 0;
 }
 
-p {
-  margin: 6px 0 0;
+#status {
+  margin-top: 4px;
   color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.account-chip {
+  max-width: 140px;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid var(--panel-line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--gold);
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .opponents {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 12px;
 }
 
 .player,
@@ -120,7 +165,7 @@ p {
   border: 1px solid var(--panel-line);
   border-radius: 8px;
   background: var(--panel);
-  padding: 14px;
+  padding: clamp(9px, 1.2vw, 13px);
 }
 
 .player.active {
@@ -145,29 +190,30 @@ p {
 }
 
 .count {
-  margin-top: 8px;
+  margin-top: 5px;
   color: var(--muted);
+  font-size: 14px;
 }
 
 .center {
   align-self: center;
   display: grid;
-  grid-template-columns: 1fr auto minmax(170px, 260px);
+  grid-template-columns: minmax(160px, 1fr) auto minmax(160px, 240px);
   align-items: center;
-  gap: 16px;
+  gap: 14px;
 }
 
 .center span,
 .last-box span {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   color: var(--muted);
   font-size: 13px;
 }
 
 .kitty,
 .last-play {
-  min-height: 58px;
+  min-height: 52px;
   display: flex;
   align-items: center;
   flex-wrap: nowrap;
@@ -180,41 +226,41 @@ p {
 }
 
 .last-box strong {
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .human-wrap {
   display: grid;
-  gap: 12px;
+  gap: 8px;
 }
 
 .human {
-  padding: 10px 14px;
+  padding: 8px 12px;
 }
 
 .hand {
-  min-height: 150px;
+  min-height: clamp(108px, 16vh, 142px);
   display: flex;
   justify-content: center;
   align-items: flex-end;
   flex-wrap: nowrap;
-  padding: 8px 0;
+  padding: 20px 0 4px;
   overflow: visible;
+  touch-action: none;
 }
 
 .card {
   position: relative;
   flex: 0 0 auto;
-  width: clamp(42px, 7.3vw, 66px);
+  width: clamp(42px, 6.2vw, 62px);
   min-width: 0;
-  height: clamp(62px, 10.6vw, 94px);
+  height: clamp(61px, 9.1vw, 88px);
   min-height: 0;
   border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: 8px;
   background: #fffdf6;
   color: var(--black);
   display: block;
-  font-size: clamp(18px, 3.7vw, 28px);
   font-weight: 900;
   box-shadow: 0 8px 14px rgba(0, 0, 0, 0.22);
   user-select: none;
@@ -222,16 +268,13 @@ p {
 }
 
 .card.small {
-  width: 38px;
-  min-width: 0;
-  height: 54px;
-  min-height: 0;
-  font-size: 16px;
+  width: 36px;
+  height: 50px;
   box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
 }
 
 .card.red {
-  color: #c93735;
+  color: var(--red);
 }
 
 .card.joker {
@@ -240,8 +283,8 @@ p {
 
 .card .corner {
   position: absolute;
-  top: 6px;
-  left: 6px;
+  top: 5px;
+  left: 5px;
   display: grid;
   gap: 0;
   justify-items: center;
@@ -249,12 +292,12 @@ p {
 }
 
 .card .rank {
-  font-size: clamp(14px, 2.4vw, 20px);
+  font-size: clamp(14px, 2vw, 18px);
 }
 
 .card .suit {
   margin-top: 2px;
-  font-size: clamp(13px, 2.2vw, 18px);
+  font-size: clamp(13px, 1.8vw, 17px);
 }
 
 .card .center-mark {
@@ -262,7 +305,7 @@ p {
   right: 8px;
   bottom: 7px;
   opacity: 0.18;
-  font-size: clamp(22px, 4.6vw, 36px);
+  font-size: clamp(22px, 3.6vw, 32px);
 }
 
 .card.small .corner {
@@ -272,13 +315,13 @@ p {
 
 .card.small .rank,
 .card.small .suit {
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .card.small .center-mark {
   right: 5px;
   bottom: 4px;
-  font-size: 19px;
+  font-size: 18px;
 }
 
 .card.back {
@@ -300,24 +343,24 @@ p {
 }
 
 .hand .card.selected {
-  transform: translateY(-22px);
+  transform: translateY(-20px);
   box-shadow: 0 16px 18px rgba(0, 0, 0, 0.28);
   outline: 3px solid var(--gold);
 }
 
 .deck-pile {
   position: relative;
-  width: 72px;
-  height: 98px;
+  width: 68px;
+  height: 90px;
   justify-self: center;
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .deck-pile .card {
   position: absolute;
-  width: 58px;
-  height: 82px;
-  inset: 8px auto auto 7px;
+  width: 54px;
+  height: 76px;
+  inset: 7px auto auto 7px;
 }
 
 .deck-pile .card:nth-child(2) {
@@ -349,8 +392,8 @@ p {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 40px;
-  height: 56px;
+  width: 38px;
+  height: 52px;
   border-radius: 7px;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.22) 25%, transparent 25%) 0 0 / 10px 10px,
@@ -359,7 +402,137 @@ p {
   border: 2px solid #fff2d3;
   box-shadow: 0 10px 18px rgba(0, 0, 0, 0.24);
   transform: translate(-50%, -50%);
-  animation: dealFly 0.48s cubic-bezier(0.16, 0.84, 0.32, 1) forwards;
+  animation: dealFly 0.46s cubic-bezier(0.16, 0.84, 0.32, 1) forwards;
+}
+
+.actions {
+  min-height: 40px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.modal {
+  width: min(420px, calc(100vw - 28px));
+  border: 0;
+  padding: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+}
+
+.modal.fallback-open {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  width: 100vw;
+  height: 100vh;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.52);
+}
+
+.modal::backdrop {
+  background: rgba(0, 0, 0, 0.52);
+}
+
+.modal-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--panel-line);
+  border-radius: 12px;
+  background: rgba(8, 35, 31, 0.96);
+  box-shadow: var(--shadow);
+}
+
+.modal-head,
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.icon-btn {
+  min-width: 36px;
+  width: 36px;
+  padding: 0;
+  font-size: 24px;
+  line-height: 1;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+input {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--panel-line);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--ink);
+  outline: none;
+}
+
+input:focus {
+  border-color: var(--gold);
+}
+
+.form-message {
+  min-height: 20px;
+  color: var(--gold);
+}
+
+.rank-card {
+  width: min(560px, calc(100vw - 28px));
+}
+
+.rank-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.rank-tab.active {
+  background: var(--gold);
+  color: #2f2510;
+}
+
+.rank-list {
+  display: grid;
+  gap: 8px;
+  max-height: min(56vh, 430px);
+  overflow-y: auto;
+}
+
+.rank-row {
+  display: grid;
+  grid-template-columns: 42px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 8px 10px;
+  border: 1px solid var(--panel-line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.rank-row small {
+  color: var(--muted);
+}
+
+.rank-warning {
+  border-color: rgba(245, 200, 91, 0.38);
 }
 
 @keyframes dealFly {
@@ -378,24 +551,54 @@ p {
   }
 }
 
-.actions {
-  min-height: 46px;
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-}
+@media (max-height: 760px) and (min-width: 721px) {
+  .table {
+    grid-template-rows: auto auto minmax(70px, 1fr) auto minmax(170px, auto);
+    gap: 7px;
+  }
 
-.hidden {
-  display: none;
+  .player,
+  .last-box {
+    padding: 8px 10px;
+  }
+
+  .last-play,
+  .kitty {
+    min-height: 44px;
+  }
+
+  .card.small {
+    width: 32px;
+    height: 45px;
+  }
+
+  .hand {
+    min-height: 116px;
+    padding-top: 18px;
+  }
 }
 
 @media (max-width: 720px) {
+  body {
+    overflow: auto;
+  }
+
   .table {
-    width: min(100vw - 12px, 720px);
-    min-height: calc(100vh - 12px);
-    margin: 6px auto;
-    padding: 12px;
+    width: min(100vw - 10px, 720px);
+    min-height: calc(100vh - 10px);
+    height: auto;
+    margin: 5px auto;
+    padding: 10px;
     border-radius: 12px;
+  }
+
+  .topbar,
+  .top-actions {
+    align-items: flex-start;
+  }
+
+  .topbar {
+    flex-direction: column;
   }
 
   .opponents,
@@ -407,13 +610,13 @@ p {
     align-self: start;
   }
 
+  .deck-pile {
+    display: none;
+  }
+
   .last-play {
     min-height: 44px;
     overflow-x: auto;
-  }
-
-  button {
-    min-width: 74px;
   }
 
   .hand {
@@ -424,9 +627,5 @@ p {
 
   .hand .card {
     --overlap: -24px;
-  }
-
-  .deck-pile {
-    display: none;
   }
 }

@@ -9,11 +9,16 @@
   <body>
     <main id="table" class="table">
       <section class="topbar">
-        <div>
+        <div class="brand">
           <h1>斗地主</h1>
           <p id="status">准备开始新牌局</p>
         </div>
-        <button id="newGame" class="ghost">新牌局</button>
+        <div class="top-actions">
+          <span id="accountName" class="account-chip">游客</span>
+          <button id="accountButton" class="ghost">登录</button>
+          <button id="rankButton" class="ghost">排行榜</button>
+          <button id="newGame" class="ghost">新牌局</button>
+        </div>
       </section>
 
       <section class="opponents">
@@ -37,7 +42,7 @@
       </section>
 
       <section class="center">
-        <div>
+        <div class="kitty-wrap">
           <span>底牌</span>
           <div id="kitty" class="kitty"></div>
         </div>
@@ -77,6 +82,47 @@
 
       <div id="dealLayer" class="deal-layer" aria-hidden="true"></div>
     </main>
+
+    <dialog id="accountDialog" class="modal">
+      <form method="dialog" class="modal-card" id="accountForm">
+        <div class="modal-head">
+          <h2 id="accountTitle">登录账号</h2>
+          <button id="closeAccount" class="icon-btn" value="cancel" type="button">×</button>
+        </div>
+        <label>
+          用户名
+          <input id="username" autocomplete="username" maxlength="16" required />
+        </label>
+        <label>
+          密码
+          <input id="password" type="password" autocomplete="current-password" minlength="4" required />
+        </label>
+        <label id="confirmWrap" class="hidden">
+          确认密码
+          <input id="confirmPassword" type="password" autocomplete="new-password" minlength="4" />
+        </label>
+        <p id="accountMessage" class="form-message"></p>
+        <div class="modal-actions">
+          <button id="toggleAccountMode" type="button">去注册</button>
+          <button id="submitAccount" class="primary" type="submit">登录</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="rankDialog" class="modal">
+      <section class="modal-card rank-card">
+        <div class="modal-head">
+          <h2>排行榜</h2>
+          <button id="closeRank" class="icon-btn" type="button">×</button>
+        </div>
+        <div class="rank-tabs">
+          <button class="rank-tab active" data-rank="wins">胜场</button>
+          <button class="rank-tab" data-rank="rate">胜率</button>
+          <button class="rank-tab" data-rank="streak">连胜</button>
+        </div>
+        <div id="rankList" class="rank-list"></div>
+      </section>
+    </dialog>
 
     <script src="app.js"></script>
   </body>

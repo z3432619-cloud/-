@@ -1,6 +1,43 @@
 const RANKS = ["3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A", "2", "小王", "大王"];
 const SUITS = ["♠", "♥", "♣", "♦"];
 const PLAYERS = ["human", "ai1", "ai2"];
+const USER_KEY = "ddz_users_v1";
+const SESSION_KEY = "ddz_current_user_v1";
+const SUPABASE_REST_URL = "https://axpvwjybndwglkurzoqu.supabase.co/rest/v1";
+const SUPABASE_PUBLIC_KEY = "sb_publishable_HE45_MzfzUx8pf1ZAyI1QQ_yPPQk7u7";
+const memoryStore = {};
+let persistentStorageAvailable = true;
+
+function storageGet(key, fallback = "") {
+  try {
+    return localStorage.getItem(key) ?? fallback;
+  } catch {
+    persistentStorageAvailable = false;
+    return memoryStore[key] ?? fallback;
+  }
+}
+
+function storageSet(key, value) {
+  memoryStore[key] = value;
+  try {
+    localStorage.setItem(key, value);
+    persistentStorageAvailable = true;
+    return true;
+  } catch {
+    persistentStorageAvailable = false;
+    return false;
+  }
+}
+
+function storageRemove(key) {
+  delete memoryStore[key];
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    persistentStorageAvailable = false;
+    // 本地文件环境可能禁用存储，忽略即可。
+  }
+}
 
 const state = {
   hands: { human: [], ai1: [], ai2: [] },
@@ -16,15 +53,24 @@ const state = {
   messageTimer: null,
   thinkingPlayer: null,
   aiTimer: null,
+  currentUser: storageGet(SESSION_KEY),
+  accountMode: "login",
+  rankMode: "wins",
+  cloudRankRows: null,
+  cloudRankLoading: false,
+  cloudRankError: "",
+  dragSelect: { active: false, mode: "add", seen: new Set(), moved: false },
 };
 
 const els = {
   table: document.querySelector("#table"),
   status: document.querySelector("#status"),
+  accountName: document.querySelector("#accountName"),
+  accountButton: document.querySelector("#accountButton"),
+  rankButton: document.querySelector("#rankButton"),
   newGame: document.querySelector("#newGame"),
   hand: document.querySelector("#hand"),
   kitty: document.querySelector("#kitty"),
-  deckPile: document.querySelector("#deckPile"),
   dealLayer: document.querySelector("#dealLayer"),
   bidding: document.querySelector("#bidding"),
   bidYes: document.querySelector("#bidYes"),
@@ -34,6 +80,20 @@ const els = {
   pass: document.querySelector("#pass"),
   hint: document.querySelector("#hint"),
   lastSummary: document.querySelector("#lastSummary"),
+  accountDialog: document.querySelector("#accountDialog"),
+  accountForm: document.querySelector("#accountForm"),
+  accountTitle: document.querySelector("#accountTitle"),
+  username: document.querySelector("#username"),
+  password: document.querySelector("#password"),
+  confirmWrap: document.querySelector("#confirmWrap"),
+  confirmPassword: document.querySelector("#confirmPassword"),
+  accountMessage: document.querySelector("#accountMessage"),
+  toggleAccountMode: document.querySelector("#toggleAccountMode"),
+  submitAccount: document.querySelector("#submitAccount"),
+  closeAccount: document.querySelector("#closeAccount"),
+  rankDialog: document.querySelector("#rankDialog"),
+  closeRank: document.querySelector("#closeRank"),
+  rankList: document.querySelector("#rankList"),
   panels: {
     human: document.querySelector("#humanPanel"),
     ai1: document.querySelector("#ai1Panel"),
@@ -53,6 +113,7 @@ const els = {
     ai1: document.querySelector("#ai1Last"),
     ai2: document.querySelector("#ai2Last"),
   },
+  rankTabs: [...document.querySelectorAll(".rank-tab")],
 };
 
 function createDeck() {
@@ -117,8 +178,7 @@ function animateDeal(done) {
     ai1: pointTo(els.panels.ai1.getBoundingClientRect(), tableRect, 0.46, 0.62),
     ai2: pointTo(els.panels.ai2.getBoundingClientRect(), tableRect, 0.54, 0.62),
   };
-  const order = Array.from({ length: 51 }, (_, index) => PLAYERS[index % 3]);
-  order.forEach((player, index) => {
+  Array.from({ length: 51 }, (_, index) => PLAYERS[index % 3]).forEach((player, index) => {
     const card = document.createElement("div");
     const jitterX = (Math.random() - 0.5) * 46;
     const jitterY = (Math.random() - 0.5) * 22;
@@ -181,6 +241,7 @@ function render() {
   els.hint.disabled = state.phase !== "play" || state.current !== "human" || busy;
   els.bidYes.disabled = busy;
   els.bidNo.disabled = busy;
+  renderAccountBar();
 
   for (const player of PLAYERS) {
     els.roles[player].textContent = state.roles[player];
@@ -191,25 +252,33 @@ function render() {
   els.counts.ai2.textContent = state.hands.ai2.length;
 
   els.kitty.innerHTML = "";
-  state.kitty.forEach((card) => els.kitty.appendChild(cardNode(card, true)));
+  if (state.landlord) {
+    state.kitty.forEach((card) => els.kitty.appendChild(cardNode(card, true)));
+  } else {
+    for (let i = 0; i < 3; i++) els.kitty.appendChild(cardBackNode(true));
+  }
 
   els.hand.innerHTML = "";
-  const overlap = handOverlap(state.hands.human.length);
-  els.hand.style.setProperty("--overlap", `${overlap}px`);
+  els.hand.style.setProperty("--overlap", `${handOverlap(state.hands.human.length)}px`);
   state.hands.human.forEach((card) => {
     const node = cardNode(card, false);
+    node.dataset.cardId = card.id;
     node.classList.toggle("selected", state.selected.has(card.id));
-    node.addEventListener("click", () => toggleCard(card.id));
     els.hand.appendChild(node);
   });
 
   els.lastSummary.textContent = state.lastCombo ? comboText(state.lastCombo) : "无";
 }
 
+function renderAccountBar() {
+  els.accountName.textContent = state.currentUser || "游客";
+  els.accountButton.textContent = state.currentUser ? "切换账号" : "登录";
+}
+
 function handOverlap(count) {
-  if (count <= 12) return -24;
-  if (count <= 17) return -30;
-  return -36;
+  if (count <= 12) return -22;
+  if (count <= 17) return -29;
+  return -35;
 }
 
 function cardNode(card, small) {
@@ -223,8 +292,14 @@ function cardNode(card, small) {
       <span class="rank">${card.rank}</span>
       <span class="suit">${card.suit}</span>
     </span>
-    <span class="center-mark">${isJoker ? card.suit : card.suit}</span>
+    <span class="center-mark">${card.suit}</span>
   `;
+  return node;
+}
+
+function cardBackNode(small) {
+  const node = document.createElement("div");
+  node.className = `card back${small ? " small" : ""}`;
   return node;
 }
 
@@ -237,6 +312,13 @@ function toggleCard(id) {
   if (state.selected.has(id)) state.selected.delete(id);
   else state.selected.add(id);
   render();
+}
+
+function setCardSelection(id, selected) {
+  if (selected) state.selected.add(id);
+  else state.selected.delete(id);
+  const node = [...els.hand.querySelectorAll(".card")].find((card) => card.dataset.cardId === id);
+  if (node) node.classList.toggle("selected", selected);
 }
 
 function selectedCards() {
@@ -293,6 +375,7 @@ function finish(winner) {
   const humanWon = state.roles.human === (landlordWon ? "地主" : "农民");
   state.phase = "finished";
   state.thinkingPlayer = null;
+  recordGame(humanWon);
   setStatus(`${nameOf(winner)}出完了，${humanWon ? "你赢了！" : "你输了，再来一局。"}`);
   render();
 }
@@ -303,13 +386,12 @@ function maybeAiTurn() {
   state.thinkingPlayer = player;
   setStatus(`${nameOf(player)}正在思考...`);
   render();
-  const pressure = tablePressure(player);
-  const delay = 520 + Math.floor(Math.random() * 520) + pressure * 130;
+  const delay = Math.min(520 + Math.floor(Math.random() * 520) + tablePressure(player) * 130, 1450);
   state.aiTimer = window.setTimeout(() => {
     const play = chooseAiPlay(player);
     if (play) commitPlay(player, play.cards, play.combo);
     else commitPass(player);
-  }, Math.min(delay, 1450));
+  }, delay);
 }
 
 function tablePressure(player) {
@@ -328,12 +410,10 @@ function chooseAiPlay(player) {
       .sort((a, b) => aiPlayScore(player, a) - aiPlayScore(player, b))[0];
     return winningPlay || null;
   }
-
   const candidates = all
     .filter((item) => canBeat(item.combo, state.lastCombo))
     .filter((item) => shouldSpendBomb(player, item))
     .sort((a, b) => aiPlayScore(player, a) - aiPlayScore(player, b));
-
   return candidates[0] || null;
 }
 
@@ -391,7 +471,6 @@ function generateCandidates(hand) {
   }
   const jokers = hand.filter((card) => card.value >= 13);
   if (jokers.length === 2) addCandidate(result, jokers);
-
   addRuns(result, hand, 1, 5);
   addRuns(result, hand, 2, 3);
   addRuns(result, hand, 3, 2);
@@ -414,10 +493,7 @@ function addRuns(result, hand, needCount, minLen) {
     if (run.length >= minLen) {
       for (let start = 0; start <= run.length - minLen; start++) {
         const slice = run.slice(start);
-        if (slice.length >= minLen) {
-          const cards = slice.flatMap((v) => groups.get(v).slice(0, needCount));
-          addCandidate(result, cards);
-        }
+        if (slice.length >= minLen) addCandidate(result, slice.flatMap((v) => groups.get(v).slice(0, needCount)));
       }
     }
   }
@@ -453,7 +529,6 @@ function analyze(cards) {
     .sort((a, b) => a.value - b.value);
   const countPattern = counts.map((item) => item.count).sort((a, b) => b - a).join("-");
   const len = sorted.length;
-
   if (len === 2 && values.includes(13) && values.includes(14)) return combo("rocket", len, 99);
   if (len === 4 && countPattern === "4") return combo("bomb", len, counts[0].value);
   if (len === 1) return combo("single", len, values[0]);
@@ -461,21 +536,11 @@ function analyze(cards) {
   if (len === 3 && countPattern === "3") return combo("triple", len, counts[0].value);
   if (len === 4 && countPattern === "3-1") return combo("triple-single", len, maxCountValue(counts, 3));
   if (len === 5 && countPattern === "3-2") return combo("triple-pair", len, maxCountValue(counts, 3));
-  if (len >= 5 && countPattern.split("-").every((c) => c === "1") && isConsecutive(values)) {
-    return combo("straight", len, values.at(-1));
-  }
-  if (len >= 6 && len % 2 === 0 && counts.every((item) => item.count === 2) && isConsecutive(counts.map((item) => item.value))) {
-    return combo("pair-straight", len, counts.at(-1).value);
-  }
-  if (len >= 6 && len % 3 === 0 && counts.every((item) => item.count === 3) && isConsecutive(counts.map((item) => item.value))) {
-    return combo("airplane", len, counts.at(-1).value);
-  }
-  if (len >= 8 && len % 4 === 0 && airplaneWithWings(counts, 1)) {
-    return combo("airplane-single", len, topTripleValue(counts));
-  }
-  if (len >= 10 && len % 5 === 0 && airplaneWithWings(counts, 2)) {
-    return combo("airplane-pair", len, topTripleValue(counts));
-  }
+  if (len >= 5 && countPattern.split("-").every((c) => c === "1") && isConsecutive(values)) return combo("straight", len, values.at(-1));
+  if (len >= 6 && len % 2 === 0 && counts.every((item) => item.count === 2) && isConsecutive(counts.map((item) => item.value))) return combo("pair-straight", len, counts.at(-1).value);
+  if (len >= 6 && len % 3 === 0 && counts.every((item) => item.count === 3) && isConsecutive(counts.map((item) => item.value))) return combo("airplane", len, counts.at(-1).value);
+  if (len >= 8 && len % 4 === 0 && airplaneWithWings(counts, 1)) return combo("airplane-single", len, topTripleValue(counts));
+  if (len >= 10 && len % 5 === 0 && airplaneWithWings(counts, 2)) return combo("airplane-pair", len, topTripleValue(counts));
   if (len === 6 && countPattern === "4-1-1") return combo("four-two-single", len, maxCountValue(counts, 4));
   if (len === 8 && countPattern === "4-2-2") return combo("four-two-pair", len, maxCountValue(counts, 4));
   return null;
@@ -526,8 +591,7 @@ function airplaneWithWings(counts, wingSize) {
         .filter((item) => item.count > 0);
       const wingCards = leftovers.reduce((sum, item) => sum + item.count, 0);
       if (wingCards !== run.length * wingSize) continue;
-      if (wingSize === 1) return true;
-      if (leftovers.every((item) => item.count === 2)) return true;
+      if (wingSize === 1 || leftovers.every((item) => item.count === 2)) return true;
     }
   }
   return false;
@@ -598,12 +662,299 @@ function hint() {
     .sort((a, b) => aiPlayScore("human", a) - aiPlayScore("human", b));
   const pick = candidates[0];
   state.selected.clear();
-  if (!pick) {
-    flash("没有能压过的牌，可以不要。");
-  } else {
-    pick.cards.forEach((card) => state.selected.add(card.id));
-  }
+  if (!pick) flash("没有能压过的牌，可以不要。");
+  else pick.cards.forEach((card) => state.selected.add(card.id));
   render();
+}
+
+function users() {
+  try {
+    return JSON.parse(storageGet(USER_KEY, "{}")) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveUsers(value) {
+  return storageSet(USER_KEY, JSON.stringify(value));
+}
+
+function ensureUserStats(user = {}) {
+  user.games ??= 0;
+  user.wins ??= 0;
+  user.streak ??= 0;
+  user.bestStreak ??= 0;
+  return user;
+}
+
+function recordGame(won) {
+  if (!state.currentUser) return;
+  const data = users();
+  const user = ensureUserStats(data[state.currentUser]);
+  user.games += 1;
+  if (won) {
+    user.wins += 1;
+    user.streak += 1;
+    user.bestStreak = Math.max(user.bestStreak, user.streak);
+  } else {
+    user.streak = 0;
+  }
+  data[state.currentUser] = user;
+  saveUsers(data);
+  saveCloudScore(state.currentUser, user);
+}
+
+function supabaseHeaders(extra = {}) {
+  return {
+    apikey: SUPABASE_PUBLIC_KEY,
+    Authorization: `Bearer ${SUPABASE_PUBLIC_KEY}`,
+    "Content-Type": "application/json",
+    ...extra,
+  };
+}
+
+async function saveCloudScore(name, stats) {
+  try {
+    const response = await fetch(`${SUPABASE_REST_URL}/doudizhu_scores?on_conflict=player_name`, {
+      method: "POST",
+      headers: supabaseHeaders({ Prefer: "resolution=merge-duplicates" }),
+      body: JSON.stringify({
+        player_name: name,
+        games: stats.games,
+        wins: stats.wins,
+        streak: stats.streak,
+        best_streak: stats.bestStreak,
+        updated_at: new Date().toISOString(),
+      }),
+    });
+    if (!response.ok) throw new Error(await response.text());
+    state.cloudRankError = "";
+    state.cloudRankRows = null;
+  } catch (error) {
+    console.warn("Supabase 保存失败：", error);
+    state.cloudRankError = "云端保存失败，已先保存到本机。";
+  }
+}
+
+async function loadCloudRanks() {
+  const response = await fetch(
+    `${SUPABASE_REST_URL}/doudizhu_scores?select=player_name,games,wins,streak,best_streak&order=wins.desc&limit=100`,
+    { headers: supabaseHeaders() }
+  );
+  if (!response.ok) throw new Error(await response.text());
+  const rows = await response.json();
+  return rows.map((row) => ({
+    name: row.player_name,
+    games: row.games,
+    wins: row.wins,
+    rate: row.games ? row.wins / row.games : 0,
+    streak: row.best_streak,
+  }));
+}
+
+function openAccount() {
+  state.accountMode = "login";
+  renderAccountForm();
+  openModal(els.accountDialog);
+  els.username.focus();
+}
+
+function renderAccountForm() {
+  const isRegister = state.accountMode === "register";
+  els.accountTitle.textContent = isRegister ? "注册账号" : "登录账号";
+  els.confirmWrap.classList.toggle("hidden", !isRegister);
+  els.confirmPassword.required = isRegister;
+  els.submitAccount.textContent = isRegister ? "注册" : "登录";
+  els.toggleAccountMode.textContent = isRegister ? "去登录" : "去注册";
+  els.accountMessage.textContent = "";
+  els.password.value = "";
+  els.confirmPassword.value = "";
+}
+
+function submitAccount(event) {
+  event.preventDefault();
+  const name = els.username.value.trim();
+  const password = els.password.value;
+  const confirm = els.confirmPassword.value;
+  if (!/^[\w\u4e00-\u9fa5]{2,16}$/.test(name)) {
+    els.accountMessage.textContent = "用户名需要 2-16 位，可用中文、字母、数字或下划线。";
+    return;
+  }
+  if (password.length < 4) {
+    els.accountMessage.textContent = "密码至少 4 位。";
+    return;
+  }
+  const data = users();
+  if (state.accountMode === "register") {
+    if (data[name]) {
+      els.accountMessage.textContent = "这个用户名已经注册。";
+      return;
+    }
+    if (password !== confirm) {
+      els.accountMessage.textContent = "两次输入的密码不一致。";
+      return;
+    }
+    data[name] = ensureUserStats({ password });
+    saveUsers(data);
+  } else if (!data[name] || data[name].password !== password) {
+    els.accountMessage.textContent = "用户名或密码不正确。";
+    return;
+  }
+  state.currentUser = name;
+  storageSet(SESSION_KEY, name);
+  if (!persistentStorageAvailable) {
+    els.accountMessage.textContent = "已登录；当前浏览器无法永久保存，刷新后账号可能消失。";
+    window.setTimeout(() => {
+      closeModal(els.accountDialog);
+      render();
+    }, 900);
+    return;
+  }
+  closeModal(els.accountDialog);
+  render();
+}
+
+function openRank() {
+  renderRank();
+  openModal(els.rankDialog);
+  refreshCloudRanks();
+}
+
+function renderRank() {
+  els.rankTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.rank === state.rankMode));
+  const localRows = Object.entries(users()).map(([name, user]) => {
+    const stats = ensureUserStats(user);
+    return {
+      name,
+      games: stats.games,
+      wins: stats.wins,
+      rate: stats.games ? stats.wins / stats.games : 0,
+      streak: stats.bestStreak,
+    };
+  });
+  const rows = state.cloudRankRows?.length ? state.cloudRankRows : localRows;
+  const sorted = rows.sort((a, b) => {
+    if (state.rankMode === "wins") return b.wins - a.wins || b.rate - a.rate;
+    if (state.rankMode === "rate") return b.rate - a.rate || b.wins - a.wins;
+    return b.streak - a.streak || b.wins - a.wins;
+  });
+  els.rankList.innerHTML = "";
+  if (state.cloudRankLoading) {
+    els.rankList.innerHTML = `<div class="rank-row"><strong>读取中</strong><small>正在加载云端排行榜...</small></div>`;
+    return;
+  }
+  if (!sorted.length) {
+    const note = state.cloudRankError || "登录后完成对局即可上榜";
+    els.rankList.innerHTML = `<div class="rank-row"><strong>暂无数据</strong><small>${escapeHtml(note)}</small></div>`;
+    return;
+  }
+  if (state.cloudRankError) {
+    const warning = document.createElement("div");
+    warning.className = "rank-row rank-warning";
+    warning.innerHTML = `<strong>提示</strong><small>${escapeHtml(state.cloudRankError)}</small><strong>本机</strong>`;
+    els.rankList.appendChild(warning);
+  }
+  sorted.forEach((row, index) => {
+    const main = state.rankMode === "wins" ? `${row.wins} 胜` : state.rankMode === "rate" ? `${Math.round(row.rate * 100)}%` : `${row.streak} 连胜`;
+    const div = document.createElement("div");
+    div.className = "rank-row";
+    div.innerHTML = `
+      <strong>#${index + 1}</strong>
+      <div>
+        <strong>${escapeHtml(row.name)}</strong>
+        <small>${row.games} 局 / ${row.wins} 胜 / 最佳 ${row.streak} 连胜</small>
+      </div>
+      <strong>${main}</strong>
+    `;
+    els.rankList.appendChild(div);
+  });
+}
+
+async function refreshCloudRanks() {
+  state.cloudRankLoading = true;
+  state.cloudRankError = "";
+  renderRank();
+  try {
+    state.cloudRankRows = await loadCloudRanks();
+  } catch (error) {
+    console.warn("Supabase 读取失败：", error);
+    state.cloudRankRows = null;
+    state.cloudRankError = "云端排行榜读取失败，正在显示本机数据。";
+  } finally {
+    state.cloudRankLoading = false;
+    renderRank();
+  }
+}
+
+function escapeHtml(text) {
+  return text.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+}
+
+function normalizeSession() {
+  if (!state.currentUser) return;
+  if (!users()[state.currentUser]) {
+    state.currentUser = "";
+    storageRemove(SESSION_KEY);
+  }
+}
+
+function openModal(dialog) {
+  if (typeof dialog.showModal === "function") {
+    dialog.showModal();
+    return;
+  }
+  dialog.setAttribute("open", "");
+  dialog.classList.add("fallback-open");
+}
+
+function closeModal(dialog) {
+  if (typeof dialog.close === "function") {
+    dialog.close();
+  } else {
+    dialog.removeAttribute("open");
+  }
+  dialog.classList.remove("fallback-open");
+}
+
+function beginDragSelect(event) {
+  if (state.phase !== "play" || state.current !== "human" || state.thinkingPlayer) return;
+  const card = event.target.closest(".hand .card");
+  if (!card?.dataset.cardId) return;
+  event.preventDefault();
+  els.hand.setPointerCapture(event.pointerId);
+  state.dragSelect = {
+    active: true,
+    mode: state.selected.has(card.dataset.cardId) ? "remove" : "add",
+    seen: new Set(),
+    moved: false,
+  };
+  visitDragCard(card);
+}
+
+function moveDragSelect(event) {
+  if (!state.dragSelect.active) return;
+  event.preventDefault();
+  state.dragSelect.moved = true;
+  const element = document.elementFromPoint(event.clientX, event.clientY);
+  const card = element?.closest?.(".hand .card");
+  if (card?.dataset.cardId) visitDragCard(card);
+}
+
+function endDragSelect(event) {
+  if (!state.dragSelect.active) return;
+  if (els.hand.hasPointerCapture(event.pointerId)) els.hand.releasePointerCapture(event.pointerId);
+  const moved = state.dragSelect.moved;
+  state.dragSelect.active = false;
+  window.setTimeout(() => {
+    state.dragSelect.moved = false;
+  }, moved ? 80 : 0);
+}
+
+function visitDragCard(card) {
+  const id = card.dataset.cardId;
+  if (state.dragSelect.seen.has(id)) return;
+  state.dragSelect.seen.add(id);
+  setCardSelection(id, state.dragSelect.mode === "add");
 }
 
 els.newGame.addEventListener("click", startGame);
@@ -612,5 +963,26 @@ els.bidNo.addEventListener("click", declineLandlord);
 els.play.addEventListener("click", playHuman);
 els.pass.addEventListener("click", passHuman);
 els.hint.addEventListener("click", hint);
+els.accountButton.addEventListener("click", openAccount);
+els.rankButton.addEventListener("click", openRank);
+els.closeAccount.addEventListener("click", () => closeModal(els.accountDialog));
+els.closeRank.addEventListener("click", () => closeModal(els.rankDialog));
+els.accountForm.addEventListener("submit", submitAccount);
+els.toggleAccountMode.addEventListener("click", () => {
+  state.accountMode = state.accountMode === "login" ? "register" : "login";
+  renderAccountForm();
+});
+els.rankTabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    state.rankMode = tab.dataset.rank;
+    renderRank();
+    if (!state.cloudRankRows && !state.cloudRankLoading) refreshCloudRanks();
+  });
+});
+els.hand.addEventListener("pointerdown", beginDragSelect);
+els.hand.addEventListener("pointermove", moveDragSelect);
+els.hand.addEventListener("pointerup", endDragSelect);
+els.hand.addEventListener("pointercancel", endDragSelect);
 
+normalizeSession();
 startGame();
